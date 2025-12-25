@@ -15,6 +15,27 @@ Key Python API (module: percently)
   - For percentile=0 or 100, yields running min/max exactly.
   - Values must be finite floats (no NaN/inf).
 
+Examples (Python)
+- Exact percentile from an in-memory list:
+  - import percently
+  - data = [10.5, 22.0, 18.7, 19.2, 30.1, 25.3]
+  - print(percently.percentile(data, 95))
+
+- Streaming running estimates from a generator (yield every 1000 samples):
+  - import percently
+  - def timings():
+      for i in range(1, 1_000_001):
+        yield float(i % 10_000) / 10_000.0
+  - for est in percently.stream(timings(), 95, every=1000):
+      last = est
+  - print("final approx p95:", last)
+
+- Running min/max (exact):
+  - import percently
+  - xs = [3.0, 1.0, 7.0]
+  - print(list(percently.stream(xs, 0)))    # running min
+  - print(list(percently.stream(xs, 100)))  # running max
+
 Rust layout
 - src/lib.rs: PyO3 module definition + function exports.
 - src/macros.rs: generates percentile wrappers for f32/f64.
@@ -30,6 +51,7 @@ How to build / test locally
 - Python dev install (editable):
   - uv sync
   - uv run maturin develop
+  - python -c "import percently; print(percently.percentile([1.0,2.0,3.0], 50))"
 
 CI / publishing
 - GitHub Actions workflow: .github/workflows/CI.yml
