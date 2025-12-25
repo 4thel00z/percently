@@ -1,0 +1,48 @@
+percently — LLM handoff / project guide
+
+What this repo is
+- A small Rust crate (cdylib) exposed to Python via PyO3 + maturin.
+- Purpose: fast percentile calculation for latency/timing distributions.
+
+Key Python API (module: percently)
+- percentile(data, percentile): exact percentile via kolmogorov_smirnov::percentile
+  - Exposed twice for float types:
+    - percentile_f32(sample: Vec[f32], percentile: u8) -> f32
+    - percentile_f64(sample: Vec[f64], percentile: u8) -> f64
+- stream(iterable, percentile, *, every=1): streaming/yielding percentile estimates
+  - Consumes any Python iterable/generator once, yields a float estimate every N samples.
+  - Approximate bounded-memory estimator (P² / P-square) for percentiles 1..99.
+  - For percentile=0 or 100, yields running min/max exactly.
+  - Values must be finite floats (no NaN/inf).
+
+Rust layout
+- src/lib.rs: PyO3 module definition + function exports.
+- src/macros.rs: generates percentile wrappers for f32/f64.
+- src/models.rs: total_cmp wrappers (OrdF32/OrdF64) for sorting floats.
+- src/stream.rs:
+  - P2Quantile: online P² estimator + warmup logic
+  - PercentileStream: PyO3 iterator implementing __iter__/__next__
+  - Unit tests validating accuracy and edge cases
+
+How to build / test locally
+- Rust tests:
+  - cargo test
+- Python dev install (editable):
+  - uv sync
+  - uv run maturin develop
+
+CI / publishing
+- GitHub Actions workflow: .github/workflows/CI.yml
+  - Builds wheels (linux + macOS) and sdist
+  - On tags, publishes to PyPI via Trusted Publishing (OIDC) using pypa/gh-action-pypi-publish
+
+Releases
+- Current convention: tags are plain versions (e.g. 0.1.4), not prefixed with "v".
+- Signed commits/tags are enabled (commit.gpgsign/tag.gpgsign true).
+- Optional local tool: cargo-release (see README “Releasing”).
+
+Conventions / gotchas
+- Percentiles are u8 in [0, 100]. Validate inputs at API boundaries.
+- For small sample sizes (<5), the streaming estimator uses an exact percentile over buffered values.
+- Don’t rely on iteration order of Python generators beyond “single pass”.
+- Avoid introducing NaN handling unless explicitly specified; current behavior rejects non-finite values.
