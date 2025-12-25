@@ -56,6 +56,29 @@ p95 = percently.percentile(data, 95)
 print(f"95th percentile: {p95:.2f}")
 ```
 
+### Streaming (iterative) percentile estimates
+
+If you have a generator/iterable and want **running percentile estimates** without loading all values into memory, use `stream`.
+
+```python
+import percently
+
+def timings():
+    for i in range(1, 1_000_001):
+        yield float(i % 10_000) / 10_000.0
+
+# Yield an updated p95 estimate every 1000 samples (approximate, bounded memory)
+for est in percently.stream(timings(), 95, every=1000):
+    last = est
+
+print("final approx p95:", last)
+```
+
+Notes:
+- `stream(..., 0, ...)` yields the running **min** (exact)
+- `stream(..., 100, ...)` yields the running **max** (exact)
+- All values must be finite floats (no NaN/inf)
+
 ## Development
 
 Build/install locally (editable) with `maturin`:
@@ -63,6 +86,21 @@ Build/install locally (editable) with `maturin`:
 ```bash
 uv sync
 uv run maturin develop
+```
+
+## Releasing
+
+This repo is configured for **signed** release commits/tags and tag-based publishing:
+- Create a signed tag (e.g. `0.1.4`)
+- GitHub Actions (tag-triggered) builds wheels/sdist and publishes to PyPI
+
+Recommended (cargo-style) tool: `cargo-release`
+
+```bash
+cargo install cargo-release
+
+# Patch release: bumps Cargo.toml version, commits (signed), creates signed tag, pushes
+cargo release patch --execute
 ```
 
 ## License
